@@ -1,0 +1,33 @@
+name: Hyte checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hyte-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
