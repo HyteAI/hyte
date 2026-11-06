@@ -12,6 +12,7 @@ import {
   Download,
   Loader2,
   Mail,
+  KeyRound,
   ArrowRight,
 } from "lucide-react";
 import { useHyteState } from "./lib/useHyteState";
@@ -29,6 +30,7 @@ import {
   Button,
   Confirm,
   IconButton,
+  Segmented,
   Sheet,
 } from "./components/ui";
 import { EntityForm } from "./components/EntityForm";
@@ -58,23 +60,40 @@ const tabs = [
 
 function AuthScreen() {
   const [email, setEmail] = useState(""),
+    [password, setPassword] = useState(""),
+    [method, setMethod] = useState(() =>
+      window.matchMedia("(display-mode: standalone)").matches ||
+      navigator.standalone === true
+        ? "Password"
+        : "Email link",
+    ),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [error, setError] = useState("");
   async function signIn(e) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError("");
+    setMessage("");
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: {
-          emailRedirectTo: window.location.origin,
-          shouldCreateUser: false,
-        },
-      });
+      const { error } =
+        method === "Password"
+          ? await supabase.auth.signInWithPassword({
+              email: email.trim(),
+              password,
+            })
+          : await supabase.auth.signInWithOtp({
+              email: email.trim(),
+              options: {
+                emailRedirectTo: window.location.origin,
+                shouldCreateUser: false,
+              },
+            });
       if (error) throw error;
-      setMessage("Check your email for your private sign-in link.");
+      setPassword("");
+      if (method === "Email link")
+        setMessage("Check your email for your private sign-in link.");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -88,19 +107,58 @@ function AuthScreen() {
         <p className="eyebrow">YOUR DAY, WITH INTENTION</p>
         <h1>A space that’s yours.</h1>
         <p>Sign in to your private Hyte workspace.</p>
+        <Segmented
+          label="Sign-in method"
+          values={["Password", "Email link"]}
+          value={method}
+          onChange={(next) => {
+            if (busy) return;
+            setMethod(next);
+            setPassword("");
+            setMessage("");
+            setError("");
+          }}
+        />
         <form onSubmit={signIn}>
           <label htmlFor="email">Email address</label>
           <input
             id="email"
             type="email"
-            autoComplete="email"
+            autoComplete="username"
             required
+            disabled={busy}
             placeholder="Your account email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <Button type="submit" icon={Mail} disabled={busy}>
-            {busy ? "Sending link…" : "Send sign-in link"}
+          {method === "Password" && (
+            <>
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                disabled={busy}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+              <small>Use the password you set in Hyte Settings.</small>
+            </>
+          )}
+          <Button
+            type="submit"
+            icon={method === "Password" ? KeyRound : Mail}
+            disabled={busy}
+          >
+            {method === "Password"
+              ? busy
+                ? "Signing in…"
+                : "Sign in"
+              : busy
+                ? "Sending link…"
+                : "Send sign-in link"}
           </Button>
         </form>
         {message && <p className="notice">{message}</p>}
@@ -109,9 +167,7 @@ function AuthScreen() {
             {error}
           </p>
         )}
-        <small>
-          Only your configured owner account can access this workspace.
-        </small>
+        <small>Only your private account can access this workspace.</small>
       </div>
     </main>
   );

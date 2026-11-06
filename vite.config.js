@@ -23,5 +23,18 @@ function versionWorker() {
 }
 export default defineConfig({
   plugins: [react(), versionWorker()],
+  server: {
+    fs: {
+      deny: [
+        ".env",
+        ".env.*",
+        "*.{crt,pem}",
+        "**/.git/**",
+        "**/.private/**",
+        "**/.release/**",
+        "**/.vercel/**",
+      ],
+    },
+  },
   build: { chunkSizeWarningLimit: 650, target: "safari16.4" },
 });

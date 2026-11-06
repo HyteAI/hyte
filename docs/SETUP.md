@@ -19,14 +19,16 @@ Do not put real secrets in a GitHub issue, chat message, browser field, or a `VI
 6. Expose the `public` schema through the Data API if it is not already exposed. Explicit table grants are included in the setup script; do not disable row-level security to solve an access error. Current Supabase projects no longer automatically grant Data API access to every newly created table.
 7. Add the environment variables below and redeploy. Restart local development after changing frontend variables.
 
-| Variable | Where | Purpose |
-| --- | --- | --- |
-| `VITE_SUPABASE_URL` | Browser build | Your Supabase project URL |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Browser build | Project publishable key; never use the service role here |
-| `SUPABASE_URL` | Server | Same project URL; falls back to the browser URL when present |
-| `SUPABASE_PUBLISHABLE_KEY` | Server | Publishable key used to validate bearer sessions; falls back to the browser key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server secret | Privileged queue/subscription operations; never expose to browsers |
-| `HYTE_OWNER_ID` | Server | The same Auth user UUID inserted in `hyte_owners` |
+For the installed iPhone app, accept your invitation in the browser, then set your own password under Settings → Storage & account → Set or change password. Choose Password when signing in from the Home Screen app. Safari and installed web apps keep separate storage; the password option allows sign-in inside the installed app. Hyte sends password updates directly to Supabase Auth and does not include passwords in planning backups.
+
+| Variable                        | Where         | Purpose                                                                         |
+| ------------------------------- | ------------- | ------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`             | Browser build | Your Supabase project URL                                                       |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Browser build | Project publishable key; never use the service role here                        |
+| `SUPABASE_URL`                  | Server        | Same project URL; falls back to the browser URL when present                    |
+| `SUPABASE_PUBLISHABLE_KEY`      | Server        | Publishable key used to validate bearer sessions; falls back to the browser key |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Server secret | Privileged queue/subscription operations; never expose to browsers              |
+| `HYTE_OWNER_ID`                 | Server        | The same Auth user UUID inserted in `hyte_owners`                               |
 
 Only the allowlisted owner can read/write `hyte_state`. Every row also checks its `user_id` against the authenticated user. The browser cannot directly create queue jobs or push subscriptions. Server endpoints validate the session with `auth.getUser(token)`, require `HYTE_OWNER_ID`, and verify the database owner row. User-editable metadata is not used for authorization.
 
@@ -65,8 +67,23 @@ Response shape:
 
 ```json
 {
-  "days": [{ "date": "YYYY-MM-DD", "hijriLabel": "", "entries": [{ "name": "الفجر", "time": "HH:mm", "kind": "prayer" }] }],
-  "events": [{ "title": "", "date": "YYYY-MM-DD", "start": "", "end": "", "allDay": true, "notes": "" }],
+  "days": [
+    {
+      "date": "YYYY-MM-DD",
+      "hijriLabel": "",
+      "entries": [{ "name": "الفجر", "time": "HH:mm", "kind": "prayer" }]
+    }
+  ],
+  "events": [
+    {
+      "title": "",
+      "date": "YYYY-MM-DD",
+      "start": "",
+      "end": "",
+      "allDay": true,
+      "notes": ""
+    }
+  ],
   "warnings": []
 }
 ```
@@ -90,14 +107,14 @@ The repository deliberately does not register an every-minute Vercel Hobby Cron 
 
 All routes below, except the cron route, require the owner's bearer session.
 
-| Request | Behavior |
-| --- | --- |
-| `GET /api/notifications` | `{ configured, publicKey, schedulerConfigured, extractionConfigured }`; no secret keys |
-| `POST /api/notifications` with `{ "action": "subscribe", "subscription": <PushSubscription.toJSON()> }` | Saves this device's subscription |
-| `POST /api/notifications` with `{ "action": "unsubscribe", "endpoint": "..." }` | Removes the matching owner's subscription; unsubscribe the browser subscription too |
-| `POST /api/notifications` with `{ "action": "test" }` | Sends a test to registered devices; API success means accepted by a push gateway, not proof the owner saw it |
-| `POST /api/schedule` | Replaces future queued alerts from the latest cloud state; returns count and state revision |
-| `GET` or `POST /api/cron/notify` | Cron-secret authentication only; leases due jobs and dispatches notifications |
+| Request                                                                                                 | Behavior                                                                                                     |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `GET /api/notifications`                                                                                | `{ configured, publicKey, schedulerConfigured, extractionConfigured }`; no secret keys                       |
+| `POST /api/notifications` with `{ "action": "subscribe", "subscription": <PushSubscription.toJSON()> }` | Saves this device's subscription                                                                             |
+| `POST /api/notifications` with `{ "action": "unsubscribe", "endpoint": "..." }`                         | Removes the matching owner's subscription; unsubscribe the browser subscription too                          |
+| `POST /api/notifications` with `{ "action": "test" }`                                                   | Sends a test to registered devices; API success means accepted by a push gateway, not proof the owner saw it |
+| `POST /api/schedule`                                                                                    | Replaces future queued alerts from the latest cloud state; returns count and state revision                  |
+| `GET` or `POST /api/cron/notify`                                                                        | Cron-secret authentication only; leases due jobs and dispatches notifications                                |
 
 The service worker receives `{title, body, tag, url, icon}`. It must always display a notification on a push event and open/focus the app at the same-origin target when tapped. Use `tag` so ordinary retries replace the same notification rather than creating multiple visible copies. Do not navigate to untrusted off-origin URLs from notification data.
 
@@ -143,4 +160,3 @@ Pure server scheduling assertions and JavaScript syntax were checked during deve
 - [Apple Web Push documentation](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers) describes iPhone Home Screen requirements.
 - [Vercel Cron usage limits](https://vercel.com/docs/cron-jobs/usage-and-pricing) describes plan frequency limits; verify current limits for the chosen plan.
 - [web-push](https://github.com/web-push-libs/web-push) documents VAPID setup and send options.
-

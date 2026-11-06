@@ -3,6 +3,7 @@ import {
   Bell,
   Download,
   ImagePlus,
+  KeyRound,
   LogOut,
   RefreshCw,
   Trash2,
@@ -35,6 +36,10 @@ export default function Settings({
   const [config, setConfig] = useState(null);
   const [configError, setConfigError] = useState("");
   const [pushError, setPushError] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmedPassword, setConfirmedPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordNotice, setPasswordNotice] = useState("");
   const [subscription, setSubscription] = useState(null);
   const [registrationSaved, setRegistrationSaved] = useState(false);
   const [permission, setPermission] = useState(() =>
@@ -91,6 +96,37 @@ export default function Settings({
       active = false;
     };
   }, [session?.user?.id]);
+
+  async function savePassword(event) {
+    event.preventDefault();
+    if (busy || !session || !supabase) return;
+    setPasswordError("");
+    setPasswordNotice("");
+    if (newPassword.length < 12) {
+      setPasswordError("Choose a password with at least 12 characters.");
+      return;
+    }
+    if (newPassword !== confirmedPassword) {
+      setPasswordError("The passwords do not match.");
+      return;
+    }
+    setBusy("password");
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (error) throw error;
+      setNewPassword("");
+      setConfirmedPassword("");
+      setPasswordNotice(
+        "Password saved. Use it to sign in from your iPhone Home Screen app.",
+      );
+    } catch (error) {
+      setPasswordError(error.message || "Your password could not be saved.");
+    } finally {
+      setBusy("");
+    }
+  }
 
   async function uploadWallpaper(event) {
     const file = event.target.files?.[0];
@@ -546,6 +582,71 @@ export default function Settings({
             : "Needs a configured private server, or enter the timetable manually."}
         </p>
         {session?.user?.email && <p>{session.user.email}</p>}
+        {session && (
+          <details
+            className="account-password"
+            onToggle={(event) => {
+              if (!event.currentTarget.open) {
+                setNewPassword("");
+                setConfirmedPassword("");
+              }
+            }}
+          >
+            <summary>Set or change password</summary>
+            <form onSubmit={savePassword}>
+              <p className="muted">
+                Set a password to sign in directly from your iPhone Home Screen
+                app. Use at least 12 characters.
+              </p>
+              <Field label="Account email">
+                <input
+                  type="email"
+                  name="username"
+                  autoComplete="username"
+                  value={session.user.email || ""}
+                  readOnly
+                />
+              </Field>
+              <Field label="New password">
+                <input
+                  type="password"
+                  name="new-password"
+                  autoComplete="new-password"
+                  minLength={12}
+                  required
+                  disabled={Boolean(busy)}
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                />
+              </Field>
+              <Field label="Confirm password">
+                <input
+                  type="password"
+                  name="confirm-password"
+                  autoComplete="new-password"
+                  minLength={12}
+                  required
+                  disabled={Boolean(busy)}
+                  value={confirmedPassword}
+                  onChange={(event) => setConfirmedPassword(event.target.value)}
+                />
+              </Field>
+              {passwordError && (
+                <p className="inline-error" role="alert">
+                  {passwordError}
+                </p>
+              )}
+              {passwordNotice && (
+                <p className="notice" role="status">
+                  {passwordNotice}
+                </p>
+              )}
+              <Button type="submit" icon={KeyRound} disabled={Boolean(busy)}>
+                {busy === "password" ? "Saving password…" : "Save password"}
+              </Button>
+            </form>
+          </details>
+        )}
         {session && (
           <Button
             icon={LogOut}
